@@ -1,0 +1,45 @@
+node{
+
+    properties([
+    buildDiscarder(
+        logRotator(
+            numToKeepStr: '25'
+            )),
+    ])
+
+    //def counter = 0
+    //def data = "Version" + counter
+    //writeFile(file: 'version.txt', text: counter.toString())
+
+    stage ('Build and Package' ) {
+        dir('spring-boot-server'){
+            if(fileExists('version.txt')) {
+                def readcounter = readFile(file: 'version.txt')
+                readcounter = readcounter.toInteger() +1
+                def version= "Version" + readcounter
+                println(version)
+                //bat "mvn install clean" 
+                bat 'mvn package -D artifactversion=' + "${version}"
+                writeFile(file: 'version.txt', text: readcounter.toString())
+            } 
+            else {
+                currentBuild.result = "FAILURE"
+                echo "FAILUREEEEEEEEEEEEEEEEEEEEEEE"  
+            } 
+                    echo "Build and Package Completed" 
+            }
+    }
+
+    stage("BuildAngular Project"){
+        echo "========^^^^^^ Start Building the Angular project ^^^^^^========"
+        dir('angular-11-client'){
+            bat 'npm install'
+            bat 'npm run ng -- build'
+            bat 'tar.exe cf dist.zip dist' 
+        }
+    }
+    stage ("Archive build output")
+    archiveArtifacts artifacts: '**/*.jar, **/angular-11-client/dist.zip', onlyIfSuccessful: true
+    
+        
+}

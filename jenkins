@@ -1,0 +1,168 @@
+def developmentArtifactVersion = ''
+def releasedVersion = ''
+
+def getDevVersion() {
+    def gitCommit = bat(returnStdout: true, script: 'git rev-parse HEAD').trim()
+    def versionNumber;
+    if (gitCommit == null) {
+        versionNumber = env.BUILD_NUMBER;
+    } else {
+        ersionNumber = gitCommit.take(8);
+    }
+    print '-------------build  versions...-------------'
+    print gitCommit
+    print '------------------versionNumber.----------------'
+    print versionNumber
+    return versionNumber
+}
+
+pipeline {
+    
+    agent any
+
+    options {
+        buildDiscarder(
+            logRotator(
+            // number of build logs to keep
+            numToKeepStr:'5',
+            // history to keep in days
+            daysToKeepStr: '20',
+            // artifacts are kept for days
+            artifactDaysToKeepStr: '5',
+            // number of builds have their artifacts kept
+            artifactNumToKeepStr: '10'
+            )
+        )
+    }
+
+
+        stages {
+        /*stage ('Build') {
+            steps {
+                dir('spring-boot-server'){
+                    //bat 'mvn install clean'
+
+                /* script{
+                        def pom = readMavenPom file: 'pom.xml'
+                        echo"----------------- pom version 1---------------------"
+                        print pom.version
+                        pom_version_array = pom.version.split('\\.')
+
+                        pom_version_array.each() {
+                            echo it
+                        }
+
+                        pom_version_array[1] = "${pom_version_array[1]}".toInteger() + 1
+                        pom.version = pom_version_array.join('.')
+                        writeMavenPom model: pom
+                        echo"----------------- pom version 2---------------------"
+                        print pom.version
+                    }*/
+
+  /*                  bat'mvn -Dintegration-tests.skip=true clean package'
+                        script{
+
+                            
+                            def targetVersion = getDevVersion()
+
+                            def pom = readMavenPom file: 'pom.xml'
+                            developmentArtifactVersion = "${pom.version}-${targetVersion}"
+                            echo"----------------- developmentArtifactVersion ---------------------"
+                            print developmentArtifactVersion
+                            echo"----------------- pom version 1---------------------"
+                            print pom.version
+                            //junit '**//*target/surefire-reports/TEST-*.xml'
+                            archive '**.jar'
+                        }
+                }
+            }
+
+            post {
+                always { */
+          //          archiveArtifacts artifacts: '**/*.jar', onlyIfSuccessful: true
+  /*              }
+            }
+
+        }*/
+        
+        /*stage('Development deploy approval and deployment') {
+                steps {
+                    script {
+                        if (currentBuild.result == null || currentBuild.result == 'SUCCESS') {
+                            timeout(time: 3, unit: 'MINUTES') {
+                                // you can use the commented line if u have specific user group who CAN ONLY approve
+                                //input message:'Approve deployment?', submitter: 'it-ops'
+                                input message: 'Approve deployment?'
+                            }
+                            timeout(time: 2, unit: 'MINUTES') {
+                                //
+                                if (developmentArtifactVersion != null && !developmentArtifactVersion.isEmpty()) {
+                                    // replace it with your application name or make it easily loaded from pom.xml
+                                    def jarName = "application-${developmentArtifactVersion}.jar"
+                                    echo"----------------- the application is deploying---------------------"
+                                    echo "the application is deploying ${jarName}"
+                                    // NOTE : CREATE your deployemnt JOB, where it can take parameters whoch is the jar name to fetch from jenkins workspace
+                                    //build job: 'ApplicationToDev', parameters: [[$class: 'StringParameterValue', name: 'jarName', value: jarName]]
+                                    echo 'the application is deployed !'
+                                } else {
+                                    error 'the application is not  deployed as development version is null!'
+                                }
+
+                            }
+                        }
+                    }
+                }
+            }
+*/
+
+        stage('Release and publish artifact') {          
+            steps{
+                dir('spring-boot-server'){
+                // create the release version then create a tage with it , then push to nexus releases the released jar
+                    //bat 'mvn install clean'
+                    script {
+                        if (currentBuild.result == null || currentBuild.result == 'SUCCESS') {
+                            def v = getReleaseVersion()
+
+                            releasedVersion = v;
+                            if (v) {
+                                echo "Building version ${v} - so released version is ${releasedVersion}"
+                            }
+                           
+                           
+                            bat "mvn -Dmaven.test.skip=true  versions:set  -DgenerateBackupPoms=false -DnewVersion=${v}"   
+
+                        } else {
+                            error "Release is not possible. as build is not successful"
+                        }
+                    }
+                }
+
+            }    
+        }
+    }
+
+    post {
+            always { 
+                archiveArtifacts artifacts: '**/*.jar', onlyIfSuccessful: true
+            }
+        } 
+
+}    
+
+def getReleaseVersion() {
+    //dir('spring-boot-server'){
+        def pom = readMavenPom file: 'pom.xml'
+        def gitCommit = bat(returnStdout: true, script: 'git rev-parse HEAD').trim()
+        def versionNumber;
+        if (gitCommit == null) {
+            versionNumber = env.BUILD_NUMBER;
+            echo"----------------- versionNumber11111111 ${versionNumber}---------------------"
+        } else {
+            versionNumber = env.BUILD_NUMBER;
+            echo"----------------- versionNumber2222222 ${versionNumber}---------------------"
+        }
+        return pom.version.replace("-SNAPSHOT", ".${versionNumber}") 
+   // }
+}
+        
