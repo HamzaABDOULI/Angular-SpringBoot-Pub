@@ -1,7 +1,7 @@
 def VersionVar=''
 pipeline {
     agent any
-    options { buildDiscarder( logRotator( numToKeepStr:'2'))}
+    options { buildDiscarder( logRotator( numToKeepStr:'20'))}
 
     tools {
         maven "maven3.8.4"
